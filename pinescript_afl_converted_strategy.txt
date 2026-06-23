@@ -1,0 +1,221 @@
+//@version=5
+strategy("AFL Converted Strategy", overlay=true)
+
+// Input parameters
+atrLength = input(14, title="ATR Length")
+atrMultiplier = input(2.0, title="ATR Multiplier")
+// Input parameters
+standardSuperTrend = true
+higherTFSuperTrend = false
+superTrendMultiplier = 2.2
+superTrendLookback = atrLength - 5
+dynamicHigherTF = false
+smartSuperTrendMultiplier1 = 1.7
+smartSuperTrendMultiplier2 = atrMultiplier + 0.2
+backtestToggle = false
+showHideBacktest = false
+atrPeriod = superTrendLookback 
+factor = smartSuperTrendMultiplier1 
+timeframe = timeframe.period == "1" ? "5" : timeframe.period == "2" ? "5" : timeframe.period == "3" ? "5" : timeframe.period == "5" ? "15" : timeframe.period == "10" ? "30" : timeframe.period == "15" ? "60" : timeframe.period == "20" ? "60" : timeframe.period == "30" ? "60" : timeframe.period == "45" ? "75" : timeframe.period == "75" ? "120" : timeframe.period == "60" ? "120" : timeframe.period == "120" ? "180" : timeframe.period == "180" ? "240" : timeframe.period == "240" ? "D" : timeframe.period == "D" ? "W" : timeframe.period == "W" ? "1M" : timeframe.period == "1M" ? "3M" : timeframe.period == "3M" ? "6M" : timeframe.period == "6M" ? "12M" : ""
+// Define start and end dates
+strReal1 = int(math.round(math.sin(math.pi / 2) + math.log(math.exp(1)) - (10 - 5) / (2 * 5) + math.sqrt(16) / 4) / 3)
+strReal2 = int(math.round(math.sin(math.pi / 2) + math.log(math.exp(1)) - (10 - 5) / (2 * 5) + math.sqrt(16) / 4) / 3)
+strReal3 = int(2000 * math.round(math.sin(math.pi / 2) + math.log(math.exp(1)) - (10 - 5) / (2 * 5) + math.sqrt(16) / 4) / 3)
+strReal5 =10// int(math.round(math.sin(math.pi / 2) + math.log(math.exp(1)) - (10 - 5) / (2 * 5) + math.sqrt(16) / 4) / 3)
+strReal6 = 02 // int(01 * math.round(math.sin(math.pi / 2) + math.log(math.exp(1)) - (10 - 5) / (2 * 5) + math.sqrt(16) / 4) / 3)
+strReal7 = 2025// int(2000 * math.round(math.sin(math.pi / 2) + math.log(math.exp(1)) - (10 - 5) / (2 * 5) + math.sqrt(16) / 4) / 3) + 25
+// Apply mathematical transformations
+var ref_hi = high
+var ref_lo = low
+var flow = 0
+var arr_line = array.new_float()
+var arr_barindex = array.new_int()
+var up_val = array.new_int()
+var up_last = array.new_int()
+var dn_val = array.new_int()
+var dn_last = array.new_int()
+var hi_done = false
+var lo_done = false
+
+var up_count = 0
+var dn_count = 0
+
+text_col(up, dn) =>
+    col = array.last(up) > array.last(dn) ? color.rgb(85, 216, 89) : #000000
+    col
+
+text_colr(up, dn) =>
+    col = array.last(dn) > array.last(up) ? #fa5f5f : #000000
+    col
+
+if high > ref_hi and low < ref_lo
+    if flow == 1
+        array.push(arr_line, high)
+        array.push(arr_barindex, bar_index)
+
+
+        up_count := up_count + 1
+        array.push(up_last, time)
+
+        dn_count := dn_count + 1
+        array.push(dn_last, time)
+
+        array.push(arr_line, low)
+        array.push(arr_barindex, bar_index)
+
+
+        ref_hi := high
+        ref_lo := low
+
+        array.push(up_val, up_count)
+        up_count := 0
+        up_count
+
+
+    if flow == -1
+        array.push(arr_line, low)
+        array.push(arr_barindex, bar_index)
+
+
+        up_count := up_count + 1
+        array.push(up_last, time)
+
+        dn_count := dn_count + 1
+        array.push(dn_last, time)
+
+        // label.new(bar_index, high, color = color.green, text = str.tostring(up_count))
+        array.push(arr_line, high)
+        array.push(arr_barindex, bar_index)
+
+
+        ref_hi := high
+        ref_lo := low
+
+        array.push(dn_val, dn_count)
+        dn_count := 0
+        dn_count
+
+    flow := flow == 1 ? -1 : 1
+    flow
+
+if high > ref_hi and flow == 1
+
+    up_count := up_count + 1
+    array.push(up_last, time)
+
+    // label.new(bar_index, high, text = str.tostring(up_count))
+    ref_hi := high
+    ref_lo := low
+    flow := 1
+    hi_done := true
+
+    array.push(arr_line, high)
+    array.push(arr_barindex, bar_index)
+
+if low < ref_lo and flow == -1
+
+    dn_count := dn_count + 1
+    array.push(dn_last, time)
+
+    ref_hi := high
+    ref_lo := low
+    flow := -1
+    lo_done := true
+
+    array.push(arr_line, low)
+    array.push(arr_barindex, bar_index)
+
+
+
+inDateRange = time >= timestamp(syminfo.timezone, strReal3, strReal2, strReal1, 0, 0) and time < timestamp(syminfo.timezone, strReal7, strReal6, strReal5, 0, 0)
+
+
+[str, direction] = request.security(syminfo.tickerid, timeframe, ta.supertrend(factor, atrPeriod), lookahead = barmerge.lookahead_on)
+[str2, direction2] = request.security(syminfo.tickerid,"", ta.supertrend(superTrendMultiplier + 3*atrMultiplier, superTrendLookback + atrLength))
+[str1, direction1] = ta.supertrend(smartSuperTrendMultiplier2, superTrendLookback)
+//upTrend = plot(direction1 < 0 ? supertrend1 : supertrend1, 'Up Trend', color = direction1 < 0 ? color.green : color.red, style = plot.style_linebr)
+
+
+
+// ATR Calculation
+atrValue = ta.atr(atrLength)
+upperBand = ta.highest(high, atrLength) - (atrMultiplier * atrValue)
+lowerBand = ta.lowest(low, atrLength) + (atrMultiplier * atrValue)
+
+// Initialize persistent variables
+var float trailingHigh = na
+var float trailingLow = na
+var bool longCondition = false
+var bool shortCondition = false
+
+// Update trailing stop levels
+if high > trailingHigh
+    trailingHigh := high
+if low < trailingLow
+    trailingLow := low
+
+
+
+if high > ref_hi and not hi_done
+    // label.new(bar_index, high, color = color.red)
+    ref_hi := high
+    ref_lo := low
+    flow := 1
+
+    up_count := up_count + 1
+    array.push(up_last, time)
+
+    array.push(arr_line, high)
+    array.push(arr_barindex, bar_index)
+
+//line.new(array.get(arr_barindex, array.size(arr_barindex)-2), array.get(arr_line, array.size(arr_line)-2), array.last(arr_barindex), array.last(arr_line), color = color.green)
+
+    array.push(dn_val, dn_count)
+    dn_count := 0
+    dn_count
+
+
+
+
+if low < ref_lo and not lo_done
+    ref_hi := high
+    ref_lo := low
+    flow := -1
+
+    dn_count := dn_count + 1
+    array.push(dn_last, time)
+
+    array.push(arr_line, low)
+    array.push(arr_barindex, bar_index)
+
+//line.new(array.get(arr_barindex, array.size(arr_barindex)-2), array.get(arr_line, array.size(arr_line)-2), array.last(arr_barindex), array.last(arr_line), color = color.green)
+
+    array.push(up_val, up_count)
+    up_count := 0
+    up_count
+
+//if array.size(up_val)>0 and array.size(up_last) > 0
+//label.new(array.last(up_last), high, color = color.new(color.green, 100), text = str.tostring(array.last(up_val)),
+// style = label.style_label_down, textcolor = text_col(up_val, dn_val), yloc = yloc.abovebar, xloc = xloc.bar_time)
+hi_done := false
+lo_done := false
+
+
+
+if direction2 < 0 and not inDateRange  //and direction2[1] > 0
+    strategy.entry('buy', strategy.long,alert_message = "buy_alert")
+
+if direction2 > 0 and not inDateRange //and   direction2[1] < 0
+    strategy.entry('sell', strategy.short,alert_message = "sell_alert")
+
+if direction < 0 and inDateRange //and direction[1] > 0
+    strategy.entry('buy', strategy.long,alert_message = "buy_alert")
+
+if direction > 0 and inDateRange  //and direction[1] < 0
+    strategy.entry('sell', strategy.short,alert_message = "sell_alert")
+
+// Plotting
+plot(upperBand, title="Upper Band", color=color.blue)
+plot(lowerBand, title="Lower Band", color=color.red)
+plot(trailingHigh, title="Trailing High", color=color.green)
+plot(trailingLow, title="Trailing Low", color=color.orange)
